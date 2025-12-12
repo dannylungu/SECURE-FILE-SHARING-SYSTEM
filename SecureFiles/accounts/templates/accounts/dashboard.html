@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Dashboard</h2>
+        <p class="text-muted">Welcome, {{ user.username }}! You are logged in as {{ user.role }}.</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-upload"></i> Upload Files
+                </h5>
+                <p class="card-text">Securely upload and encrypt your files</p>
+                <a href="{% url 'file_upload' %}" class="btn btn-light">
+                    Upload Now
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-folder-open"></i> My Files
+                </h5>
+                <p class="card-text">Manage your uploaded files</p>
+                <a href="{% url 'file_list' %}" class="btn btn-light">
+                    View Files
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3>{{ user_files.count }}</h3>
+                            <p class="text-muted">Your Files</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3>{{ shared_files.count }}</h3>
+                            <p class="text-muted">Shared with You</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3>{{ user.role|title }}</h3>
+                            <p class="text-muted">Your Role</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

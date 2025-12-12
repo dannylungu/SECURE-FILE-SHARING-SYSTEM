@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>My Files</h2>
+            <a href="{% url 'file_upload' %}" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Upload New File
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Debug Info (remove this after testing) -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <strong>Debug Info:</strong><br>
+            User Files: {{ user_files.count }}<br>
+            Shared Files: {{ shared_files.count }}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <ul class="nav nav-tabs" id="fileTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="my-files-tab" data-bs-toggle="tab" data-bs-target="#my-files" type="button">
+                    My Files ({{ user_files.count }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="shared-files-tab" data-bs-toggle="tab" data-bs-target="#shared-files" type="button">
+                    Shared with Me ({{ shared_files.count }})
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content mt-3" id="fileTabsContent">
+            <!-- My Files Tab -->
+            <div class="tab-pane fade show active" id="my-files">
+                {% if user_files %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Size</th>
+                                <th>Uploaded</th>
+                                <th>Hash</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in user_files %}
+                            <tr>
+                                <td>{{ file.original_filename }}</td>
+                                <td>{{ file.file_size|filesizeformat }}</td>
+                                <td>{{ file.uploaded_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <small class="text-muted" title="{{ file.file_hash }}">
+                                        {{ file.file_hash|slice:":16" }}...
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'file_download' file.id %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-download"></i> Download
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#shareModal{{ file.id }}">
+                                            <i class="fas fa-share"></i> Share
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Share Modal -->
+                                    <div class="modal fade" id="shareModal{{ file.id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Share {{ file.original_filename }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form method="post" action="{% url 'file_share' file.id %}">
+                                                    {% csrf_token %}
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Share with User</label>
+                                                            <select name="shared_with" class="form-select" required>
+                                                                <option value="">Select user...</option>
+                                                                {% for user in all_users %}
+                                                                <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Permission</label>
+                                                            <select name="permission" class="form-select" required>
+                                                                <option value="read">Read Only</option>
+                                                                <option value="edit">Can Edit</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">Share File</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <h5>No files uploaded yet</h5>
+                    <p class="text-muted">Upload your first file to get started!</p>
+                    <a href="{% url 'file_upload' %}" class="btn btn-primary">Upload File</a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Shared Files Tab -->
+            <div class="tab-pane fade" id="shared-files">
+                {% if shared_files %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Owner</th>
+                                <th>Size</th>
+                                <th>Shared</th>
+                                <th>Permission</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in shared_files %}
+                            <tr>
+                                <td>{{ file.original_filename }}</td>
+                                <td>{{ file.owner.username }}</td>
+                                <td>{{ file.file_size|filesizeformat }}</td>
+                                <td>{{ file.uploaded_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    {% for share in file.shares.all %}
+                                        {% if share.shared_with == request.user %}
+                                            <span class="badge bg-{% if share.permission == 'read' %}info{% else %}warning{% endif %}">
+                                                {{ share.permission|title }}
+                                            </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'file_download' file.id %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5>No files shared with you yet</h5>
+                    <p class="text-muted">Other users can share files with you.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize tabs
+    var triggerTabList = [].slice.call(document.querySelectorAll('#fileTabs button'))
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl)
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault()
+            tabTrigger.show()
+        })
+    })
+</script>
+{% endblock %}
