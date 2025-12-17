@@ -69,9 +69,35 @@
                                         <a href="{% url 'file_download' file.id %}" class="btn btn-outline-primary">
                                             <i class="fas fa-download"></i> Download
                                         </a>
+                                        <a href="{% url 'file_view' file.id %}" class="btn btn-outline-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ file.id }}">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
                                         <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#shareModal{{ file.id }}">
                                             <i class="fas fa-share"></i> Share
                                         </button>
+                                    </div>
+                                    
+                                    <!-- Delete Modal -->
+                                    <div class="modal fade" id="deleteModal{{ file.id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Confirm Delete</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to delete <strong>{{ file.original_filename }}</strong>?</p>
+                                                    <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <a href="{% url 'file_delete' file.id %}" class="btn btn-danger">Delete Permanently</a>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                     
                                     <!-- Share Modal -->
@@ -90,7 +116,9 @@
                                                             <select name="shared_with" class="form-select" required>
                                                                 <option value="">Select user...</option>
                                                                 {% for user in all_users %}
+                                                                {% if user.id != request.user.id %}
                                                                 <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+                                                                {% endif %}
                                                                 {% endfor %}
                                                             </select>
                                                         </div>
@@ -158,9 +186,41 @@
                                     {% endfor %}
                                 </td>
                                 <td>
-                                    <a href="{% url 'file_download' file.id %}" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-download"></i> Download
-                                    </a>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'file_download' file.id %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-download"></i> Download
+                                        </a>
+                                        <a href="{% url 'file_view' file.id %}" class="btn btn-outline-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeSharedModal{{ file.id }}">
+                                            <i class="fas fa-times"></i> Remove
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Remove Shared File Modal -->
+                                    <div class="modal fade" id="removeSharedModal{{ file.id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Remove Shared File</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to remove <strong>{{ file.original_filename }}</strong> from your shared files?</p>
+                                                    <p class="text-muted">
+                                                        <i class="fas fa-info-circle"></i>
+                                                        This will only remove the file from your shared list. 
+                                                        The owner's original file will not be deleted.
+                                                    </p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <a href="{% url 'remove_shared_file' file.id %}" class="btn btn-danger">Remove from My Files</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -191,5 +251,17 @@
             tabTrigger.show()
         })
     })
+    
+    // Add confirmation for remove shared file
+    document.addEventListener('DOMContentLoaded', function() {
+        const removeLinks = document.querySelectorAll('a[href*="remove-shared"]');
+        removeLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (!confirm('Are you sure you want to remove this file from your shared list?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}

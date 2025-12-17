@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>View File: {{ filename }}</h2>
+            <div>
+                <a href="{% url 'file_download' file_id %}" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download
+                </a>
+                <a href="{% url 'file_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Files
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> File Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Filename:</strong> {{ filename }}</p>
+                        <p><strong>Owner:</strong>
+                            {% if file.owner == request.user %}
+                            <span class="badge bg-primary">You</span>
+                            {% else %}
+                            {{ file.owner.username }}
+                            {% endif %}
+                        </p>
+                        <p><strong>Content Type:</strong> {{ content_type }}</p>
+                        <p><strong>Size:</strong> {{ file_size|filesizeformat }}</p>
+                        <p><strong>Uploaded:</strong> {{ file.uploaded_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Permissions:</strong></p>
+                        {% if file.owner == request.user %}
+                        <span class="badge bg-success"><i class="fas fa-crown"></i> Owner</span>
+                        <span class="badge bg-primary">Full Control</span>
+                        {% else %}
+                        {% for share in file.shares.all %}
+                        {% if share.shared_with == request.user %}
+                        {% if share.permission == 'read' %}
+                        <span class="badge bg-info"><i class="fas fa-eye"></i> Read Only</span>
+                        {% elif share.permission == 'edit' %}
+                        <span class="badge bg-warning"><i class="fas fa-edit"></i> Can Edit</span>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+
+                        <!-- Hash for verification -->
+                        <p class="mt-3"><strong>File Hash (SHA-256):</strong></p>
+                        <small class="text-muted">{{ file.file_hash|slice:":32" }}...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-eye"></i> File Content
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if content_type == 'application/json' %}
+                <pre><code class="language-json">{{ content }}</code></pre>
+                {% elif content_type == 'application/xml' or '.xml' in filename %}
+                <pre><code class="language-xml">{{ content }}</code></pre>
+                {% elif content_type == 'text/html' or '.html' in filename %}
+                <div class="border p-3 bg-light">
+                    {{ content|safe }}
+                </div>
+                {% else %}
+                <pre class="bg-light p-3 border rounded" style="max-height: 500px; overflow: auto;">{{ content }}</pre>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Add syntax highlighting for code -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Apply syntax highlighting
+        document.querySelectorAll('pre code').forEach((el) => {
+            hljs.highlightElement(el);
+        });
+    });
+</script>
+{% endblock %}

@@ -376,3 +376,137 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
+
+@login_required
+def file_view_view(request, file_id):
+    """View file content in browser"""
+    secure_file = get_object_or_404(SecureFile, id=file_id)
+    
+    # Check permissions
+    if secure_file.owner != request.user and not FileShare.objects.filter(file=secure_file, shared_with=request.user).exists():
+        messages.error(request, 'You do not have permission to view this file.')
+        return redirect('file_list')
+    
+    try:
+        from accounts.models import UserProfile
+        from logs.models import SecurityLog
+        
+        # Read encrypted file
+        with open(secure_file.encrypted_file.path, 'rb') as f:
+            encrypted_data = f.read()
+        
+        # Verify file integrity
+        current_hash = compute_file_hash(encrypted_data)
+        if current_hash != secure_file.file_hash:
+            messages.error(request, 'File integrity check failed. File may have been tampered with.')
+            return redirect('file_list')
+        
+        # Get user's RSA private key
+        user_profile = UserProfile.objects.get(user=request.user)
+        
+        # Decrypt AES key
+        encrypted_aes_key = bytes.fromhex(secure_file.encrypted_aes_key)
+        aes_key = decrypt_rsa(encrypted_aes_key, user_profile.rsa_private_key)
+        
+        # Decrypt file
+        decrypted_data = decrypt_file_aes(encrypted_data, aes_key)
+        
+        # Determine content type
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(secure_file.original_filename)
+        if not content_type:
+            content_type = 'application/octet-stream'
+        
+        # For text files, show in browser
+        if content_type.startswith('text/') or content_type in ['application/json', 'application/xml']:
+            try:
+                content = decrypted_data.decode('utf-8')
+            except:
+                content = decrypted_data.decode('latin-1')
+            
+            context = {
+                'filename': secure_file.original_filename,
+                'content': content,
+                'content_type': content_type,
+                'file_size': len(decrypted_data),
+                'file': secure_file,
+                'file_id': file_id,  
+            }
+            
+            # Log view action
+            SecurityLog.objects.create(
+                user=request.user,
+                action='FILE_VIEW',
+                description=f'Viewed file: {secure_file.original_filename}',
+                ip_address=get_client_ip(request)
+            )
+            
+            return render(request, 'files/file_view.html', context)
+        else:
+            # For binary files, offer download
+            messages.info(request, 'This file type cannot be displayed in browser. Please download it.')
+            return redirect('file_download', file_id=file_id)
+    
+    except Exception as e:
+        messages.error(request, f'Error viewing file: {str(e)}')
+        return redirect('file_list')
+
+@login_required
+def file_delete_view(request, file_id):
+    """Delete a file"""
+    secure_file = get_object_or_404(SecureFile, id=file_id, owner=request.user)
+    
+    try:
+        filename = secure_file.original_filename
+        
+        # Delete the physical file
+        if os.path.exists(secure_file.encrypted_file.path):
+            os.remove(secure_file.encrypted_file.path)
+        
+        # Delete the database record
+        secure_file.delete()
+        
+        # Log the deletion
+        from logs.models import SecurityLog
+        SecurityLog.objects.create(
+            user=request.user,
+            action='FILE_DELETE',
+            description=f'Deleted file: {filename}',
+            ip_address=get_client_ip(request)
+        )
+        
+        messages.success(request, f'File "{filename}" deleted successfully.')
+    
+    except Exception as e:
+        messages.error(request, f'Error deleting file: {str(e)}')
+    
+    return redirect('file_list')
+@login_required
+def remove_shared_file_view(request, file_id):
+    """Remove a shared file from user's shared files list"""
+    secure_file = get_object_or_404(SecureFile, id=file_id)
+    
+    # Check if file is shared with user
+    try:
+        file_share = FileShare.objects.get(file=secure_file, shared_with=request.user)
+        filename = secure_file.original_filename
+        owner = secure_file.owner.username
+        
+        # Delete the file share (this removes it from user's shared list)
+        file_share.delete()
+        
+        # Log the action
+        from logs.models import SecurityLog
+        SecurityLog.objects.create(
+            user=request.user,
+            action='SHARED_FILE_REMOVED',
+            description=f'Removed shared file "{filename}" (owner: {owner}) from shared list',
+            ip_address=get_client_ip(request)
+        )
+        
+        messages.success(request, f'File "{filename}" has been removed from your shared files.')
+        
+    except FileShare.DoesNotExist:
+        messages.error(request, 'This file is not shared with you or you do not have permission to remove it.')
+    
+    return redirect('file_list')

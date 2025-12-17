@@ -105,3 +105,18 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
+
+# Email Configuration (For development)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For testing - sends to console
+EMAIL_HOST = 'localhost'
+EMAIL_PORT = 25
+
+# For production, use these settings instead:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'  # or your SMTP server
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your-password'
+# DEFAULT_FROM_EMAIL = 'SecureFileShare <noreply@securefileshare.com>'
